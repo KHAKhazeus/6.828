@@ -9,7 +9,6 @@
 #include <kern/pmap.h>
 #include <kern/kclock.h>
 
-
 void
 i386_init(void)
 {
@@ -28,6 +27,8 @@ i386_init(void)
 
 	// Lab 2 memory management initialization functions
 	mem_init();
+	// Test the stack backtrace function (lab 1 only)
+	// test_backtrace(5);
 
 	// Drop into the kernel monitor.
 	while (1)
