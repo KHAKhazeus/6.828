@@ -763,46 +763,6 @@ check_page_alloc(void)
 static void
 check_kern_pgdir(void)
 {
-<<<<<<< HEAD
-    uint32_t i, n;
-    pde_t *pgdir;
-
-    pgdir = kern_pgdir;
-
-    // check pages array
-    n = ROUNDUP(npages*sizeof(struct PageInfo), PGSIZE);
-    for (i = 0; i < n; i += PGSIZE)
-        assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
-
-
-    // check phys mem
-    for (i = 0; i < npages * PGSIZE; i += PGSIZE)
-        assert(check_va2pa(pgdir, KERNBASE + i) == i);
-
-    // check kernel stack
-    for (i = 0; i < KSTKSIZE; i += PGSIZE)
-        assert(check_va2pa(pgdir, KSTACKTOP - KSTKSIZE + i) == PADDR(bootstack) + i);
-    assert(check_va2pa(pgdir, KSTACKTOP - PTSIZE) == ~0);
-
-    // check PDE permissions
-    for (i = 0; i < NPDENTRIES; i++) {
-        switch (i) {
-        case PDX(UVPT):
-        case PDX(KSTACKTOP-1):
-        case PDX(UPAGES):
-            assert(pgdir[i] & PTE_P);
-            break;
-        default:
-            if (i >= PDX(KERNBASE)) {
-                assert(pgdir[i] & PTE_P);
-                assert(pgdir[i] & PTE_W);
-            } else
-                assert(pgdir[i] == 0);
-            break;
-        }
-    }
-    cprintf("check_kern_pgdir() succeeded!\n");
-=======
 	uint32_t i, n;
 	pde_t *pgdir;
 
@@ -846,7 +806,6 @@ check_kern_pgdir(void)
 		}
 	}
 	cprintf("check_kern_pgdir() succeeded!\n");
->>>>>>> a9d7717cc4b7751b1ce8dca4e5aa2722fa617f6b
 }
 
 // This function returns the physical address of the page containing 'va',
