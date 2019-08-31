@@ -34,7 +34,6 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 		*perm_store = thisenv->env_ipc_perm;
 	return thisenv->env_ipc_value;
 	// panic("ipc_recv not implemented");
-	return 0;
 }
 
 // Send 'val' (and 'pg' with 'perm', if 'pg' is nonnull) to 'toenv'.
@@ -49,11 +48,15 @@ void
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
 	// LAB 4: Your code here.
-	if (!pg) pg = (void*)UTOP;
+	if (!pg) {
+		pg = (void*)UTOP;
+	}
 	int ret;
-	while ((ret = sys_ipc_try_send(to_env, val, pg, perm))) {
+	while ((ret = sys_ipc_try_send(to_env, val, pg, perm))< 0) {
 		if (ret == 0) break;
-		if (ret != -E_IPC_NOT_RECV) panic("not E_IPC_NOT_RECV, %e", ret);
+		if (ret != -E_IPC_NOT_RECV){
+			panic("send message error, %e", ret);
+		}
 		sys_yield();
 	}
 	// panic("ipc_send not implemented");

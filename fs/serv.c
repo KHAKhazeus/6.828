@@ -214,7 +214,22 @@ serve_read(envid_t envid, union Fsipc *ipc)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// Lab 5: Your code here:
-	return 0;
+	struct OpenFile *open_file;
+	int resp;
+	//first find open files
+	if ((resp = openfile_lookup(envid, req->req_fileid, &open_file)) < 0){
+		return resp;
+	}
+	if (open_file->o_fd->fd_offset == open_file->o_file->f_size){
+		return -E_INVAL;
+	}
+	if ((resp = file_read(open_file->o_file, ret->ret_buf, ipc->read.req_n, open_file->o_fd->fd_offset)) < 0){
+		return resp;
+	}
+	else{
+		open_file->o_fd->fd_offset += resp;
+		return resp;
+	}
 }
 
 
