@@ -17,6 +17,8 @@ pgfault(struct UTrapframe *utf)
 	void *addr = (void *) utf->utf_fault_va;
 	uint32_t err = utf->utf_err;
 	int r;
+	extern volatile pte_t uvpt[];     // VA of "virtual page table"
+	extern volatile pde_t uvpd[];     // VA of current page directory
 
 	// Check that the faulting access was (1) a write, and (2) to a
 	// copy-on-write page.  If not, panic.
@@ -25,6 +27,9 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
+	if(!( (FEC_WR & err) && ( uvpd[PDX(addr)] & PTE_P ) &&  (uvpt[PGNUM(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_COW))){
+		panic("not COW!");
+	}
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
@@ -33,8 +38,27 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
+	//alloc
+	if(sys_page_alloc(sys_getenvid(), (void *)PFTEMP, PTE_P | PTE_W | PTE_U)){
+		panic("user page fault allocation failed!");
+	}
+	else{
+		addr = ROUNDDOWN(addr, PGSIZE);
+		//copy
+		memcpy((void *)PFTEMP, (void *)addr, PGSIZE);
+		//map
+		if(sys_page_unmap(sys_getenvid(), addr)){
+			panic("unmap old page, failed!");
+		}
+		if(sys_page_map(sys_getenvid(), PFTEMP, sys_getenvid(), addr, PTE_W|PTE_U|PTE_P)){
+			panic("copy mapping failed");
+		}
+		if(sys_page_unmap(sys_getenvid(), PFTEMP)){
+			panic("unmap new temp page, failed!");
+		}
+	}
 
-	panic("pgfault not implemented");
+	// panic("pgfault not implemented");
 }
 
 //
@@ -54,7 +78,21 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	// panic("duppage not implemented");
+	void *addr = (void*) (pn*PGSIZE);
+	if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) {
+		if (sys_page_map(thisenv->env_id, addr, envid, addr, PTE_COW|PTE_U|PTE_P)){
+			panic("child copy-on-write failed");
+		}
+		if (sys_page_map(thisenv->env_id, addr, thisenv->env_id, addr, PTE_COW|PTE_U|PTE_P)){
+			panic("father copy-on-write failed");
+		}
+	} 
+	else {
+		if( sys_page_map(thisenv->env_id, addr, envid, addr, PTE_U|PTE_P)){
+			panic("default mapping failed");
+		}
+	}
 	return 0;
 }
 
@@ -78,7 +116,40 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+	// panic("fork not implemented");
+	set_pgfault_handler(pgfault);
+
+  	envid_t ch_envid;
+  	uint32_t addr;
+	ch_envid = sys_exofork();
+	if (ch_envid == 0) {
+		//in child process
+		//fix thisenv
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+
+	if (ch_envid < 0){
+		panic("sys_exofork: %e", ch_envid);
+	}
+
+	
+	for (addr = 0; addr < USTACKTOP; addr += PGSIZE)
+		if ((uvpd[PDX(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_P)
+			&& (uvpt[PGNUM(addr)] & PTE_U)) {
+			duppage(ch_envid, PGNUM(addr));
+		}
+
+	if (sys_page_alloc(ch_envid, (void *)(UXSTACKTOP-PGSIZE), PTE_U|PTE_W|PTE_P) < 0)
+		panic("exception stack allocation failed!");
+
+	void _pgfault_upcall();
+	sys_env_set_pgfault_upcall(ch_envid, _pgfault_upcall);
+
+	if (sys_env_set_status(ch_envid, ENV_RUNNABLE)){
+		panic("child sys_env_set_status failed");
+	}
+	return ch_envid;
 }
 
 // Challenge!
