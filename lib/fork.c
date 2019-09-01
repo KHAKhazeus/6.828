@@ -80,16 +80,16 @@ duppage(envid_t envid, unsigned pn)
 	// LAB 4: Your code here.
 	// panic("duppage not implemented");
 	void *addr = (void*) (pn*PGSIZE);
-	if ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) {
-		if (sys_page_map(thisenv->env_id, addr, envid, addr, PTE_COW|PTE_U|PTE_P)){
+	if ((uvpt[pn] & PTE_COW) || (!(uvpt[pn] & PTE_SHARE) && (uvpt[pn] & PTE_W))) {
+		if (sys_page_map(thisenv->env_id, addr, envid, addr,  ((uvpt[pn] & PTE_SYSCALL) & (~PTE_W)) | PTE_COW)){
 			panic("child copy-on-write failed");
 		}
-		if (sys_page_map(thisenv->env_id, addr, thisenv->env_id, addr, PTE_COW|PTE_U|PTE_P)){
+		if (sys_page_map(thisenv->env_id, addr, thisenv->env_id, addr,  ((uvpt[pn] & PTE_SYSCALL) & (~PTE_W)) | PTE_COW)){
 			panic("father copy-on-write failed");
 		}
 	} 
 	else {
-		if( sys_page_map(thisenv->env_id, addr, envid, addr, PTE_U|PTE_P)){
+		if( sys_page_map(thisenv->env_id, addr, envid, addr, (uvpt[pn] & PTE_SYSCALL))){
 			panic("default mapping failed");
 		}
 	}

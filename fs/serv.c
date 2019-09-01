@@ -215,15 +215,20 @@ serve_read(envid_t envid, union Fsipc *ipc)
 
 	// Lab 5: Your code here:
 	struct OpenFile *open_file;
-	int resp;
+	int resp, req_n;
 	//first find open files
 	if ((resp = openfile_lookup(envid, req->req_fileid, &open_file)) < 0){
 		return resp;
 	}
-	if (open_file->o_fd->fd_offset == open_file->o_file->f_size){
-		return -E_INVAL;
+	req_n = req->req_n;
+	if(open_file->o_fd->fd_offset + req_n > open_file->o_file->f_size){
+		req_n = open_file->o_file->f_size - open_file->o_fd->fd_offset;
+
 	}
-	if ((resp = file_read(open_file->o_file, ret->ret_buf, ipc->read.req_n, open_file->o_fd->fd_offset)) < 0){
+	if(req_n > PGSIZE){
+		req_n = PGSIZE;
+	}
+	if ((resp = file_read(open_file->o_file, ret->ret_buf, req_n, open_file->o_fd->fd_offset)) < 0){
 		return resp;
 	}
 	else{
@@ -244,7 +249,18 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+	struct OpenFile *o;
+	int r, req_n;
+
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+	req_n = req->req_n > PGSIZE ? PGSIZE : req->req_n;
+	if ((r = file_write(o->o_file, req->req_buf, req_n, o->o_fd->fd_offset)) < 0)
+		return r;
+	o->o_fd->fd_offset += r;
+
+	return r;
+	// panic("serve_write not implemented");
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the

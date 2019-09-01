@@ -49,7 +49,7 @@ bc_pgfault(struct UTrapframe *utf)
 	//
 	// LAB 5: you code here:
 	addr = ROUNDDOWN(addr, PGSIZE);
-	if((r = sys_page_alloc(0, addr, PTE_W|PTE_U|PTE_P))){
+	if((r = sys_page_alloc(sys_getenvid(), addr, PTE_W|PTE_U|PTE_P))){
 		panic("disk initiation allocation failed: %e", r);
 	};
 	if ((r = ide_read(blockno*BLKSECTS, addr, BLKSECTS))) {
@@ -58,7 +58,7 @@ bc_pgfault(struct UTrapframe *utf)
 
 	// Clear the dirty bit for the disk block page since we just read the
 	// block from disk
-	if ((r = sys_page_map(0, addr, 0, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0)
+	if ((r = sys_page_map(sys_getenvid(), addr, sys_getenvid(), addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0)
 		panic("in bc_pgfault, sys_page_map: %e", r);
 
 	// Check that the block we read was allocated. (exercise for
