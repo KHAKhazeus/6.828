@@ -235,6 +235,9 @@ trap_dispatch(struct Trapframe *tf)
 
 		case IRQ_OFFSET + IRQ_TIMER:
 			lapic_eoi();
+			if(thiscpu->cpu_id == 0){
+				time_tick();
+			}
 			sched_yield();
 			return;
 
@@ -245,6 +248,7 @@ trap_dispatch(struct Trapframe *tf)
 		case IRQ_OFFSET + IRQ_SERIAL:
 			serial_intr();
 			return;
+
 		
 		default:
 			break;
